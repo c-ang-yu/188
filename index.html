@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F5F5F5">
+<title>测测你是188男团里的谁</title>
+<link rel="icon" href="data:,">
+<style>
+/* =========================================================
+ * 测测你是188男团里的谁 · 单文件静态页
+ * UI 规范沿用 fiction-character-quiz skill（BravoPlay 风格）：
+ * #F5F5F5 页面底 + 白色圆角卡片；黑白主色；中文宋体；
+ * 胶囊 border-radius:999；430px 手机版式。
+ * 算法：六维向量 + 余弦相似度（同 skill 模板）。
+ * ========================================================= */
+:root{
+  --ink:#111111; --page:#F5F5F5; --card:#ffffff; --line:#e7e7e5;
+  --gray:#9a9a96; --faint:#c4c4c0;
+  --font:Arial,"Helvetica Neue","SourceHanSerif","Songti SC","SimSun","NSimSun",serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{background:#e8e8e6;font-family:var(--font);color:var(--ink);}
+button{font-family:var(--font);border:none;background:none;color:inherit;cursor:pointer;}
+.hidden{display:none !important;}
+
+.app{max-width:430px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--page);position:relative;box-shadow:0 0 40px rgba(0,0,0,.08);}
+.view{display:none;min-height:100vh;min-height:100dvh;position:relative;padding-bottom:60px;}
+.view.active{display:block;animation:fadein .28s ease;}
+@keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* ---------- 头区 ---------- */
+.hero{height:33.3vh;height:33.3dvh;min-height:210px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:44px;}
+.hero.small{height:auto;min-height:0;padding:44px 20px 8px;}
+.logo{font-size:30px;font-weight:700;letter-spacing:2px;}
+.logo-sub{margin-top:9px;font-size:10px;color:var(--gray);letter-spacing:6px;}
+.cap{text-align:center;font-size:11px;color:var(--gray);letter-spacing:4px;}
+.r-name{font-size:40px;font-weight:700;letter-spacing:6px;margin-top:10px;}
+.r-chip{margin-top:12px;display:inline-flex;align-items:center;justify-content:center;height:26px;padding:0 14px;border:1.2px solid var(--ink);border-radius:999px;font-size:12.5px;letter-spacing:2px;background:#fff;}
+
+.pad{padding:0 20px;}
+.card{background:var(--card);border-radius:20px;padding:18px 16px;box-shadow:0 2px 12px rgba(0,0,0,.05);margin-top:12px;}
+.sec-label{font-size:11px;color:var(--gray);letter-spacing:3px;margin:20px 0 10px;display:flex;align-items:center;gap:10px;}
+.sec-label::after{content:"";flex:1;height:1px;background:var(--line);}
+.card .sec-label:first-child{margin-top:0;}
+
+/* ---------- 首页 ---------- */
+#view-home{flex-direction:column;}
+#view-home.active{display:flex;}
+#view-home .pad{flex:1;display:flex;flex-direction:column;justify-content:flex-end;}
+.chip{display:inline-flex;align-items:center;justify-content:center;flex:none;height:26px;padding:0 11px;border:1.2px solid var(--faint);border-radius:999px;font-size:12px;letter-spacing:1px;color:#777;background:#fff;}
+.main-btn{margin-top:28px;width:100%;height:56px;border-radius:28px;background:var(--ink);color:#fff;font-size:17px;font-weight:700;letter-spacing:8px;text-indent:8px;box-shadow:0 6px 18px rgba(0,0,0,.18);transition:opacity .15s,transform .1s;}
+.main-btn:active{opacity:.85;transform:scale(.99);}
+.foot-note{text-align:center;font-size:11px;color:var(--faint);letter-spacing:2px;margin-top:18px;}
+
+/* ---------- 答题 ---------- */
+.qhead{position:sticky;top:0;z-index:3;background:var(--page);display:flex;align-items:center;gap:14px;padding:18px 20px 10px;}
+.icon-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex:none;margin-left:-8px;}
+.icon-btn svg{width:22px;height:22px;color:var(--ink);}
+.qprogress{flex:1;height:3px;background:var(--line);border-radius:2px;overflow:hidden;}
+#qbar{height:100%;width:0;background:var(--ink);transition:width .3s ease;}
+#qcount{font-size:11px;color:var(--gray);letter-spacing:1px;flex:none;}
+.qtext{font-size:17px;line-height:2.05;color:#111;margin:2px 2px 18px;}
+.opts{display:flex;flex-direction:column;gap:12px;}
+.opt{background:var(--card);border:1.5px solid transparent;border-radius:20px;padding:15px 17px;font-size:14.5px;line-height:1.85;color:#333;text-align:left;box-shadow:0 2px 12px rgba(0,0,0,.05);transition:border-color .12s,opacity .12s,transform .08s;}
+.opt:active{transform:scale(.99);}
+.opt.sel{border-color:var(--ink);}
+.opt .key{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.2px solid var(--faint);border-radius:999px;font-size:11px;color:var(--gray);margin-right:9px;flex:none;vertical-align:2px;}
+.opt.sel .key{border-color:var(--ink);background:var(--ink);color:#fff;}
+
+/* ---------- 结果 ---------- */
+.r-line{text-align:center;font-size:17px;letter-spacing:2px;line-height:2;margin-top:16px;}
+.dimrow{margin-bottom:14px;}
+.dimrow:last-child{margin-bottom:2px;}
+.dimtop{display:flex;align-items:baseline;margin-bottom:7px;}
+.dimname{font-size:13px;font-weight:700;letter-spacing:2px;}
+.dimpole{margin-left:auto;font-size:11px;color:var(--gray);letter-spacing:1px;}
+.dimtrack{position:relative;height:5px;background:#f0f0ee;border-radius:3px;}
+.dimfill{position:absolute;left:0;top:0;height:100%;background:var(--ink);border-radius:3px;transition:width .6s ease;}
+.dimmark{position:absolute;top:50%;width:11px;height:11px;border-radius:999px;background:#fff;border:2.5px solid var(--ink);transform:translate(-50%,-50%);transition:left .6s ease;}
+.dimlegend{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);margin-top:5px;letter-spacing:1px;}
+.rtext{font-size:14.5px;line-height:2.15;color:#333;}
+.tagwrap{display:flex;flex-wrap:wrap;gap:8px 10px;}
+.tagwrap .chip{color:#555;}
+.alt{text-align:center;font-size:12px;color:var(--gray);letter-spacing:1px;margin-top:14px;}
+.alt b{color:var(--ink);border-bottom:1.5px solid var(--ink);padding-bottom:1px;}
+.m-btns{display:flex;gap:12px;margin-top:22px;}
+.mb{flex:1;height:46px;border-radius:23px;font-size:15px;letter-spacing:2px;display:flex;align-items:center;justify-content:center;transition:opacity .15s;}
+.mb:active{opacity:.8;}
+.mb.ghost{border:1.5px solid var(--ink);color:var(--ink);background:#fff;}
+.mb.solid{background:var(--ink);color:#fff;}
+
+/* ---------- toast ---------- */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:60px;max-width:80%;background:rgba(17,17,17,.88);color:#fff;font-size:13px;letter-spacing:1px;padding:10px 20px;border-radius:999px;z-index:50;text-align:center;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== 首页 ===== -->
+  <section id="view-home" class="view active">
+    <header class="hero">
+      <h1 class="logo">你是188男团里的谁</h1>
+      <p class="logo-sub">188 BOYS CHARACTER QUIZ</p>
+    </header>
+    <div class="pad">
+      <button id="btn-start" class="main-btn">开 始 测 试</button>
+      <p class="foot-note">仅供娱乐 · 人设归于水千丞 188 系列</p>
+    </div>
+  </section>
+
+  <!-- ===== 答题 ===== -->
+  <section id="view-quiz" class="view">
+    <header class="qhead">
+      <button id="btn-back" class="icon-btn" aria-label="上一题">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4.5L7.5 12l7.5 7.5"/></svg>
+      </button>
+      <div class="qprogress"><div id="qbar"></div></div>
+      <span id="qcount"></span>
+    </header>
+    <div class="pad">
+      <div class="sec-label" id="q-dim"></div>
+      <p id="q-text" class="qtext"></p>
+      <div id="q-opts" class="opts"></div>
+    </div>
+  </section>
+
+  <!-- ===== 结果 ===== -->
+  <section id="view-result" class="view">
+    <header class="hero small">
+      <p class="cap">你 的 灵 魂 是</p>
+      <h1 class="r-name" id="r-name"></h1>
+      <span class="r-chip" id="r-title"></span>
+    </header>
+    <div class="pad">
+      <p class="r-line" id="r-line"></p>
+      <div class="card">
+        <div class="sec-label">六 维 剖 析</div>
+        <div id="r-bars"></div>
+        <div class="dimlegend" id="r-legend"></div>
+      </div>
+      <div class="card">
+        <div class="sec-label">人 设 关 键 词</div>
+        <div id="r-tags" class="tagwrap"></div>
+        <p class="alt" id="r-book"></p>
+      </div>
+      <div class="card">
+        <div class="sec-label">判 词</div>
+        <p id="r-text" class="rtext"></p>
+      </div>
+      <p class="alt" id="r-alt"></p>
+      <div class="m-btns">
+        <button id="btn-retry" class="mb ghost">再测一次</button>
+        <button id="btn-copy" class="mb solid">复制结果</button>
+      </div>
+      <p class="foot-note">仅供娱乐 · 人设归于水千丞 188 系列</p>
+    </div>
+  </section>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<script>
+/* ================= 六维定义（向量序） ================= */
+/* 0 情热 冷月↔烈火 / 1 处世 独处↔人群 / 2 章法 随性↔守序
+   3 心术 坦荡↔深藏 / 4 情义 浪荡↔专一 / 5 刚柔 柔韧↔锋锐 */
+const DIMS = [
+  {name:'情 热', words:['冷月如霜','偏冷','亦动亦静','偏热','烈火灼灼']},
+  {name:'处 世', words:['离群索居','偏独','独乐亦众乐','热闹','人堆中心']},
+  {name:'章 法', words:['随性而为','随性','松紧有度','自律','章法如山']},
+  {name:'心 术', words:['坦荡如砥','直给','七分藏三分露','有城府','深不可测']},
+  {name:'情 义', words:['浪荡成性','花心','看缘分','长情','一生一人']},
+  {name:'刚 柔', words:['柔韧似水','偏柔','刚柔并济','强势','锋锐逼人']},
+];
+function poleWord(v){
+  if(v <= -1.34) return 0;
+  if(v <= -0.67) return 1;
+  if(v <   0.67) return 2;
+  if(v <   1.34) return 3;
+  return 4;
+}
+
+/* ================= 角色数据（22位 · 六维向量 -2..+2） ================= */
+const C = {
+  shaoqun:{n:"邵群",t:"荒唐狂澜",role:"188男团 · 团长",book:"《娘娘腔》",cp:"邵群 × 李程秀",job:"风投公司董事长",h:"188cm",v:[1,1,-1,1,-2,2],
+    tags:["生性凉薄","桀骜混蛋","追妻火葬场永动机","一生只修一座城墙"],
+    d:"你出身优越、手握泼天资源，习惯了要风得风。年轻时的你混不吝又自私，伤过最深爱你的人；可一旦认定，你比谁都疯——放下面子、掏出真心，用余生去修补当年的错。你的人生哲学：先赢下全世界，再把那个人赢回来。",
+    q:"我错过的那些年，用一辈子来还。"},
+  lichengxiu:{n:"李程秀",t:"雪底春草",role:"娘娘腔本人 · 团嫂",book:"《娘娘腔》",cp:"李程秀 × 邵群",job:"厨师",h:"约177cm",v:[-1,-2,1,-1,2,-2],
+    tags:["外柔内韧","在泥里也要干净地活","隐忍十年不喊疼","心软嘴硬"],
+    d:"你温柔、安静，习惯把委屈咽进肚子里。命运给过你很多烂牌，可你从没弄脏过自己的手——被生活按在地上摩擦，你依然认真吃饭、认真工作、认真地善良。你唯一的任性，是心里始终留着那个人的位置。",
+    q:"日子再难，也要活得干干净净。"},
+  liyu:{n:"李玉",t:"孤玉清寒",role:"188男团成员 · 攻",book:"《你却爱着一个傻逼》",cp:"李玉 × 简隋英",job:"私募基金创始人",h:"188cm",v:[-1.5,0,1,0,1,0.5],
+    tags:["清高淡漠","口是心非","死不承认却早已沦陷","爱起来孤注一掷"],
+    d:"你骨子里清高，隔着人群都透着一股冷感。嘴上说着一万个不可能，身体却诚实得要命；骄傲如你，认错比登天难，但爱起来却敢押上全部身家。你的人生轨迹证明：再倔的人，也会为一个人单膝跪地。",
+    q:"简哥，我很爱你，想一辈子和你在一起。"},
+  jiansuiying:{n:"简隋英",t:"骄阳破雪",role:"京城大少 · 团宠哥哥",book:"《你却爱着一个傻逼》",cp:"简隋英 × 李玉",job:"霸道总裁",h:"184cm",v:[2,2,-2,-1.5,1,-1.5],
+    tags:["风流潇洒","嘴硬心软","为爱做0第一人","被全世界辜负仍选择原谅"],
+    d:"你是行走的荷尔蒙和存在感本身，人帅钱多朋友广，看着没心没肺，实则最重感情。你爱一个人的方式又飒又笨：万人之上，只对一人低头。哪怕被伤得体无完肤，你也总能拍拍灰，笑着原谅这个操蛋的世界。",
+    q:"我简隋英的人，轮不到别人指手画脚。"},
+  yanmingxiu:{n:"晏明修",t:"月下白霜",role:"188男团 · 门面担当",book:"《职业替身》",cp:"晏明修 × 周翔",job:"龙科重工总裁",h:"188cm",v:[-2,-1,0,1,2,1],
+    tags:["晏美人","清冷绝色","感情洁癖","失去后才知深爱"],
+    d:"你生在罗马，长得好看的教科书，走到哪儿都是被偷看的那个。表面生人勿近，实际恋家爱撒娇；你有严重的感情洁癖——眼睛里进不了一粒沙，心里放不下第二个人。你最大的成长：学会在失去之前，先说爱。",
+    q:"我找了你一个月，把整个地球翻了个遍。"},
+  zhouxiang:{n:"周翔",t:"逆命春风",role:"重生影帝 · 大哥本哥",book:"《职业替身》",cp:"周翔 × 晏明修",job:"演员 / 前武替",h:"未知（背影杀）",v:[2,2,0.5,-2,2,-0.5],
+    tags:["热情爽朗","成熟体贴","直球告白","人生重来仍选同一条路"],
+    d:"你是圈内公认的好人缘，笑起来能治愈一整个剧组。爱了就直说，疼了就自己扛；哪怕明知自己是替身，你也认认真真去爱。老天让你重活一次，你依然头也不回地走向同一个人——这份执拗，就是你的浪漫。",
+    q:"我这辈子，就认定你了。"},
+  yangyuan:{n:"原炀",t:"烈马长缰",role:"188男团成员 · 忠犬",book:"《针锋对决》",cp:"原炀 × 顾青裴",job:"投资公司总裁",h:"188cm",v:[2,1,-2,-2,1,2],
+    tags:["兵痞出身","忠犬属性","先干为敬","惹了天大的祸也要追回来"],
+    d:"你浑身上下写满不服，天生反骨，谁堵你你杠谁。看起来横冲直撞，其实认死理：认定的人，九头牛都拉不回来。你用最莽的方式闯祸，也用最莽的方式负责——错了就认，爱了就追到天涯海角。",
+    q:"顾青裴，你只能是我的。"},
+  guqingpei:{n:"顾青裴",t:"金镜玄狐",role:"顾天仙 · 精英天花板",book:"《针锋对决》",cp:"顾青裴 × 原炀",job:"投资公司总裁",h:"182cm",v:[-1,0,2,0.5,1,1],
+    tags:["腹黑毒舌","体面比命重","金边眼镜","刀枪不入却渴望被偏爱"],
+    d:"你是行走的精英范本：西装一丝不苟，吵架从没输过。你把理性和体面刻进骨子里，受再大的委屈也要优雅离场；可只有你知道，那副刀枪不入的皮囊下，藏着一颗想被人无条件偏好的心。",
+    q:"我这个人，最不怕的就是讲道理。"},
+  songjuhan:{n:"宋居寒",t:"灼日浮金",role:"188男团 · 副团长",book:"《一醉经年》",cp:"宋居寒 × 何故",job:"当红歌手 / 制作人",h:"188cm",v:[2,2,-2,-0.5,-1,1],
+    tags:["宋巨婴","中德混血","风流霸道","失去后才学会爱"],
+    d:"你是舞台中央的太阳，被全世界宠爱，也习惯性地挥霍这份宠爱。你曾把最爱你的人当空气，直到他转身才惊觉天塌了。好在副团长的觉悟来得不算太晚——追妻火葬场爬完，你终于学会了把一个人放在心尖上。",
+    q:"何故，这次换我等你。"},
+  hegu:{n:"何故",t:"深巷灯影",role:"暗恋天花板 · 工程师",book:"《一醉经年》",cp:"何故 × 宋居寒",job:"高级建筑师",h:"183cm",v:[-1,-2,2,-1,1.5,-0.5],
+    tags:["暗恋十年","隐忍克制","攒够失望就离场","爱意全在细节里"],
+    d:"你安静、踏实，心思细得像你的图纸。喜欢一个人可以藏十年，十年里全是没说出口的早安晚安。你的温柔自带底线：可以陪你演很久，但心凉透了就果断转身，绝不回头。不是不爱了，是不想再委屈自己。",
+    q:"我不等了。"},
+  yufengcheng:{n:"俞风城",t:"朔风铁马",role:"188男团成员 · 兵痞",book:"《小白杨》",cp:"俞风城 × 白新羽",job:"特种兵",h:"188cm",v:[1,1,-1,-1,2,2],
+    tags:["嘴硬心软","狂傲毒舌","吃醋雷达","背心绣满你的名字"],
+    d:"你邪魅狂狷，浑身的痞气和正气五五开。嘴上全是嫌弃，行动全是惯着；认定一个目标就直勾勾往前冲，认定的一个人就绕八百里也要守着。你表达爱的方式很兵哥：不解释，直接办。",
+    q:"这辈子，我只爱你白新羽一个。"},
+  baixinyu:{n:"白新羽",t:"云开见月",role:"逆袭锦鲤 · 娇气狙击手",book:"《小白杨》",cp:"白新羽 × 俞风城",job:"安保公司合伙人 / 前富二代",h:"未知",v:[1,2,-2,-1,1,0.5],
+    tags:["怂但不废","知耻后勇","嘴碎爱贫","拿命护认定的人"],
+    d:"你是被扔进熔炉里才发光的那种人：起点再烂，也敢原地翻盘。嘴上喊着一万个不行，身体却诚实地练到第一；平时怂得可爱，关键时刻却能替人挡枪。你的成长曲线，就是一本《草包的自我修养》。",
+    q:"谁说我白新羽不行？比武第一了解一下！"},
+  luoyi:{n:"洛羿",t:"霜刃藏鞘",role:"188男团成员 · 天才小疯批",book:"《附加遗产》",cp:"洛羿 × 温小辉",job:"演员 / 六边形天才",h:"188cm",v:[0,-1.5,2,2,1.5,0.5],
+    tags:["智商167","病娇偏执","善于伪装","“我爱你”是唯一真话"],
+    d:"你是上帝亲手的杰作，也是命运没发完糖的苦孩子。从小缺爱的你学会了伪装成任何人喜欢的样子，唯独在他面前，才敢露出真实的裂缝。你的爱浓度超标、占有欲爆表——吓人，却也滚烫。",
+    q:"我说过很多谎，但我爱你是真的。"},
+  wenxiaohui:{n:"温小辉",t:"胭脂烈火",role:"妖孽Tony · 毒舌小太阳",book:"《附加遗产》",cp:"温小辉 × 洛羿",job:"美容师",h:"未知",v:[2,2,-1,0,1,0],
+    tags:["毒舌护短","阳光自信","妖孽美人","“老公帮我打他”"],
+    d:"你嘴上不饶人，心里全是义气；打扮得妖妖娆娆，骨子里比谁都硬气。别人笑你爱美，你偏美得理直气壮。你是照进别人灰暗人生的那束光——当然，谁敢欺负你重视的人，你的嘴就是最锋利的刀。",
+    q:"我温小辉的人，也轮得到你们说？"},
+  zhaojinxin:{n:"赵锦辛",t:"金蝶扑火",role:"188男团成员 · 撒娇渣攻",book:"《谁把谁当真》",cp:"赵锦辛 × 黎朔",job:"恩南集团执行总裁",h:"188cm",v:[2,2,-1.5,0.5,-2,-0.5],
+    tags:["风流薄幸","爱撒娇","浪子回头","追妻路漫漫"],
+    d:"你是含着金汤匙的花蝴蝶，撩人于无形，撒娇要命。曾经你把真心当游戏，直到把最对的人弄丢了才懂什么叫疼。好在你的脸和你的悔过都足够真诚——火葬场爬完，浪子终于收了心。",
+    q:"黎老师，再给我一次机会好不好？"},
+  lishuo:{n:"黎朔",t:"玉壶秋水",role:"优雅黎老师 · 成熟精英",book:"《谁把谁当真》",cp:"黎朔 × 赵锦辛",job:"审计师 / 事务所创始人",h:"183cm",v:[-1,1,2,-1,1,-1],
+    tags:["温润儒雅","清醒理智","心软嘴硬","怕鬼萌点"],
+    d:"你是历经千帆的体面人：聪明、自律、优雅，连转身都转得漂亮。你对世界宽容，对自己严格，唯独在感情里总差点狠心。别看你平时天不怕地不怕——关灯之后，被窝才是你的主场。",
+    q:"我没义务，回应所有的爱。"},
+  zhoujinxing:{n:"周谨行",t:"笑面修罗",role:"混血王子 · 灰大叔的春天",book:"《老婆孩子热炕头》",cp:"周谨行 × 丁小伟",job:"宏运资本继承人",h:"188cm",v:[0,-1,1,2,0,1],
+    tags:["双面绅士","腹黑商人","万事以利为先","被烟火气捂热的心"],
+    d:"你是西装革履的狐狸，笑起来温文尔雅，算起来六亲不认。亲情爱情对你曾是奢侈品，你习惯用利益丈量一切——直到那间小屋的饭香和孩子的笑声，把你这块万年寒冰捂出了热气。",
+    q:"利益之外，我第一次想留点东西给谁。"},
+  dingxiaowei:{n:"丁小伟",t:"人间烟火",role:"灰大叔 · 烟火气本人",book:"《老婆孩子热炕头》",cp:"丁小伟 × 周谨行",job:"司机 / 单亲爸爸",h:"未知",v:[1,1,-1,-2,2,-1],
+    tags:["仗义老实","烟火气十足","知足常乐","后知后觉的直男深情"],
+    d:"你是人间的烟火气本身：踏实、仗义、顾家，最大的野心是给闺女挣个学费。你不懂什么风花雪月，但你会救人于海边、暖人于三餐。你这辈子最浪漫的事——把平凡日子过成了别人的求而不得。",
+    q:"赚俩小钱，把闺女养好，就挺好。"},
+  gongyingxian:{n:"宫应弦",t:"孤城深雪",role:"高智商孤岛 · 刑警博士",book:"《火焰戎装》",cp:"宫应弦 × 任燚",job:"刑警 / 化学博士",h:"188cm",v:[-1.5,-2,2,0,2,1.5],
+    tags:["高智商INTJ","洁癖","恐火症","只对一人卸下防备"],
+    d:"你是人群中的孤岛，聪明到孤独，克制到无趣。十八年前那场大火在你心里烧出的洞，谁也补不上——直到那个满身热量的家伙冲进你的世界。你的爱不声不响，却比谁都深：一旦开门，就是你全部的人生。",
+    q:"这个案子，我追了十八年。"},
+  renyi:{n:"任燚",t:"向死之火",role:"火场英雄 · 四火队长",book:"《火焰戎装》",cp:"任燚 × 宫应弦",job:"特勤消防中队长",h:"184cm",v:[2,2,1,-2,2,1.5],
+    tags:["英勇热血","开朗直率","救人如信仰","用热情融化冰山"],
+    d:"你是天生的英雄命：别人遇到火往外跑，你往里冲。你活得敞亮、爱得坦荡，认定的人就掏心掏肺地暖。你相信世界上没有焐不热的冰——事实证明，你不仅灭得了火，还熔得动冰山。",
+    q:"火场我来，你负责活着。"},
+  qumoyu:{n:"瞿末予",t:"孤峰猎手",role:"新进成员 · 顶级猎手",book:"《顶级掠食者》",cp:"瞿末予 × 沈岱",job:"星舟集团执行董事",h:"约188cm",v:[-1,-1,2,1,-1,2],
+    tags:["利益至上","傲慢猎手","嘴硬心冷","火葬场专业户"],
+    d:"你是食物链顶端的男人，谈判桌上从不输，感情里却后知后觉到离谱。曾经你把婚姻当并购，把温柔当成本；直到那个人带着孩子头也不回地走掉，你才发现自己输掉的，是整个人生。好在——顶级掠食者认输的样子，也足够彻底。",
+    q:"我可以输掉所有筹码，除了你。"},
+  shendai:{n:"沈岱",t:"昙花夜刃",role:"隐藏掠食者 · 昙花Omega",book:"《顶级掠食者》",cp:"沈岱 × 瞿末予",job:"稀土研究员",h:"未知",v:[-0.5,-1,1,1,1,-2],
+    tags:["温柔是伪装","清醒地爱","外柔内刚","为守护底线瞬间翻脸"],
+    d:"你安静、温和，像一朵不开口的昙花；可所有人都看走了眼——你才是书名里那只顶级掠食者。你爱的时候百分百真心，退的时候百分百体面；触碰你的底线？对不起，软肋背后全是獠牙。",
+    q:"我不是逃走，我只是不再等你了。"},
+};
+
+/* ================= 题库（6维 × 2题 · 选项 s∈{2,1,-1,-2}） ================= */
+const Q = [
+  /* 情热 */
+  {dim:0, q:"朋友兴冲冲跑来分享喜事，你的第一反应是？",o:[
+    {t:"比TA还激动，蹦起来一起庆祝",s:2},
+    {t:"笑意藏不住，真心实意道贺",s:1},
+    {t:"点点头：“挺好，替你高兴。”",s:-1},
+    {t:"内心毫无波澜，敷衍两句",s:-2}]},
+  {dim:0, q:"深夜情绪上头的时候，你会？",o:[
+    {t:"拉人聊个通宵，倾诉欲爆棚",s:2},
+    {t:"写点东西，把情绪安放好",s:1},
+    {t:"翻翻手机，困了就睡",s:-1},
+    {t:"闷头消化，谁也不告诉",s:-2}]},
+  /* 处世 */
+  {dim:1, q:"难得的周末，你打算怎么过？",o:[
+    {t:"呼朋唤友，热闹开场",s:2},
+    {t:"约三两好友小聚",s:1},
+    {t:"宅家独处，给自己充电",s:-1},
+    {t:"闭关谢客，谁都别找我",s:-2}]},
+  {dim:1, q:"婚宴上同桌全是陌生面孔，你会？",o:[
+    {t:"一顿饭下来全场混熟",s:2},
+    {t:"锁定投缘那位，聊到底",s:1},
+    {t:"安静吃菜，偶尔刷手机",s:-1},
+    {t:"如坐针毡，盘算提前开溜",s:-2}]},
+  /* 章法 */
+  {dim:2, q:"计划一场旅行，你的风格是？",o:[
+    {t:"攻略精确到小时，雷打不动",s:2},
+    {t:"订好大方向，细节随心",s:1},
+    {t:"说走就走，随缘至上",s:-1},
+    {t:"计划什么的，最好消失",s:-2}]},
+  {dim:2, q:"面对规矩和戒律，你的态度是？",o:[
+    {t:"原则如山，寸步不让",s:2},
+    {t:"大节守稳，小节灵活",s:1},
+    {t:"规是死的人是活的",s:-1},
+    {t:"规则，就是用来破的",s:-2}]},
+  /* 心术 */
+  {dim:3, q:"想办成一件大事，你会？",o:[
+    {t:"直接摊牌，明人不说暗话",s:-2},
+    {t:"凭本事，光明正大地争",s:-1},
+    {t:"讲策略，借力打力",s:1},
+    {t:"步步为营，底牌不示人",s:2}]},
+  {dim:3, q:"别人对“真正的你”了解几分？",o:[
+    {t:"全写在脸上，一眼见底",s:-2},
+    {t:"熟人能知道七八分",s:-1},
+    {t:"只展示想给的那一面",s:1},
+    {t:"从未有人真正看透我",s:2}]},
+  /* 情义 */
+  {dim:4, q:"感情里的你是什么样？",o:[
+    {t:"认定一个人，就是一生",s:2},
+    {t:"对的人出现，就主动收心",s:1},
+    {t:"享受暧昧，不轻易表态",s:-1},
+    {t:"新鲜感至上，常换常新",s:-2}]},
+  {dim:4, q:"旧爱回头求复合，而你正有暧昧对象，你会？",o:[
+    {t:"干脆利落拒绝，心里只有现在",s:2},
+    {t:"婉言拒绝，但要纠结许久",s:1},
+    {t:"心里动摇，旧情难忘",s:-1},
+    {t:"两个都不放手，先处着",s:-2}]},
+  /* 刚柔 */
+  {dim:5, q:"正面冲突，对方来势汹汹，你会？",o:[
+    {t:"硬碰硬，当场掀桌",s:2},
+    {t:"强硬回击，但留有余地",s:1},
+    {t:"避其锋芒，迂回周旋",s:-1},
+    {t:"以退为进，先示弱再说",s:-2}]},
+  {dim:5, q:"被生活按在地上摩擦之后，你会？",o:[
+    {t:"立刻爬起来，接着干",s:2},
+    {t:"缓口气，换个姿势再来",s:1},
+    {t:"先退一步，避避风头",s:-1},
+    {t:"咬碎了牙，也咽进肚里",s:-2}]},
+];
+
+/* ================= 逻辑 ================= */
+const $ = id => document.getElementById(id);
+let idx = 0;
+let vec = [0,0,0,0,0,0];
+let answered = [];
+let orders = [];
+let result = null;
+
+function shuffle(n){
+  const a = [...Array(n).keys()];
+  for(let i = n - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function show(name){
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  $('view-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function cn(n){ return ['一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四'][n - 1] || n; }
+
+function startQuiz(){
+  idx = 0; vec = [0,0,0,0,0,0]; result = null;
+  answered = new Array(Q.length).fill(null);
+  orders = Q.map(() => shuffle(4));
+  renderQ();
+  show('quiz');
+}
+
+function renderQ(){
+  const item = Q[idx];
+  $('qbar').style.width = ((idx + 1) / Q.length * 100) + '%';
+  $('qcount').textContent = (idx + 1) + ' / ' + Q.length;
+  $('q-dim').textContent = '第 ' + cn(idx + 1) + ' 问 · ' + DIMS[item.dim].name.replace(/ /g,'');
+  $('q-text').textContent = item.q;
+  const box = $('q-opts');
+  box.innerHTML = '';
+  const letters = ['A','B','C','D'];
+  orders[idx].forEach((oi, k) => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = '<span class="key">' + letters[k] + '</span>' + item.o[oi].t;
+    b.onclick = () => pick(oi, b);
+    box.appendChild(b);
+  });
+}
+
+function pick(oi, btn){
+  if(btn.classList.contains('sel')) return;
+  const o = Q[idx].o[oi];
+  vec[Q[idx].dim] += o.s;
+  answered[idx] = o;
+  btn.classList.add('sel');
+  setTimeout(() => {
+    if(idx < Q.length - 1){ idx++; renderQ(); }
+    else finish();
+  }, 240);
+}
+
+$('btn-back').onclick = () => {
+  if(idx > 0){
+    const prev = answered[idx];
+    if(prev){ vec[Q[idx].dim] -= prev.s; }
+    idx--; renderQ();
+  } else show('home');
+};
+
+function cosSim(u, c){
+  let d = 0;
+  for(let i = 0; i < 6; i++) d += u[i] * c[i];
+  return d / (Math.hypot(...u) * Math.hypot(...c) || 1e-9);
+}
+
+function finish(){
+  const entries = Object.entries(C).map(([k, c]) => [k, cosSim(vec, c.v)])
+    .sort((a, b) => b[1] - a[1]);
+  result = { ranked: entries, best: C[entries[0][0]], second: C[entries[1][0]] };
+  renderResult();
+  show('result');
+}
+
+function renderResult(){
+  const { ranked, best, second } = result;
+  $('r-name').textContent = best.n;
+  $('r-title').textContent = best.t;
+  $('r-line').textContent = '「 ' + best.q + ' 」';
+  $('r-text').textContent = best.d;
+  $('r-tags').innerHTML = best.tags.map(t => '<span class="chip">' + t + '</span>').join('');
+  $('r-book').textContent = best.book + ' · ' + best.role;
+  $('r-alt').innerHTML = '次像：<b>' + second.n + '</b> · ' + second.book.replace(/[《》]/g, '') + '的' + second.n;
+
+  /* 六维剖析：黑条=你的维度得分位置，圆点=该人物坐标 */
+  const box = $('r-bars');
+  box.innerHTML = '';
+  DIMS.forEach((dim, i) => {
+    const upct = (vec[i] + 4) / 8 * 100;          /* -4..+4 → 0..100 */
+    const cpct = (best.v[i] + 2) / 4 * 100;       /* -2..+2 → 0..100 */
+    const row = document.createElement('div');
+    row.className = 'dimrow';
+    row.innerHTML =
+      '<div class="dimtop"><span class="dimname">' + dim.name +
+      '</span><span class="dimpole">' + dim.words[poleWord(vec[i])] + '</span></div>' +
+      '<div class="dimtrack"><div class="dimfill" style="width:0" data-w="' + upct + '"></div>' +
+      '<div class="dimmark" style="left:0" data-left="' + cpct + '"></div></div>';
+    box.appendChild(row);
+  });
+  $('r-legend').innerHTML = '<span>◄ ' + best.t + '</span><span>■ 你的位置 · ● ' + best.n + '</span>';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    box.querySelectorAll('.dimfill').forEach(f => f.style.width = f.dataset.w + '%');
+    box.querySelectorAll('.dimmark').forEach(m => m.style.left = m.dataset.left + '%');
+  }));
+}
+
+/* 复制结果 */
+$('btn-copy').onclick = () => {
+  const { best } = result;
+  const dims = DIMS.map((d, i) => d.name.replace(/ /g,'') + '·' + d.words[poleWord(vec[i])]).join('｜');
+  const text = '【测测你是188男团里的谁】\n我测出了：' + best.n + ' · ' + best.t +
+    '\n「' + best.q + '」\n六维：' + dims;
+  const done = () => toast('已复制，快去分享吧');
+  /* execCommand 同步可靠（用户手势内），失败再退 clipboard API */
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try{ ok = document.execCommand('copy'); }catch(e){ ok = false; }
+  document.body.removeChild(ta);
+  if(ok){ done(); }
+  else if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(() => toast('复制失败，请手动截图'));
+  } else toast('复制失败，请手动截图');
+};
+
+let toastTimer = null;
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 1800);
+}
+
+/* 绑定 */
+$('btn-start').onclick = startQuiz;
+$('btn-retry').onclick = startQuiz;
+</script>
+</body>
+</html>
